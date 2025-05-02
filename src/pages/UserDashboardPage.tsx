@@ -20,9 +20,9 @@ const UserDashboardPage = () => {
     try {
       const parsedUser = JSON.parse(storedUser);
       if (parsedUser.userType === 'admin') {
-        navigate('/admin');
+        navigate('/admin/dashboard');
       } else if (parsedUser.userType === 'farmer') {
-        navigate('/farmer');
+        navigate('/farmer/dashboard');
       }
     } catch (error) {
       console.error('Failed to parse user data:', error);

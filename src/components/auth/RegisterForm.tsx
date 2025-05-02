@@ -90,52 +90,63 @@ const RegisterForm = () => {
     setIsLoading(true);
     
     try {
-      // In a real app, this would be an API call to register the user
-      console.log('Registering with:', formData);
-      
-      // Add role-specific fields to the data being sent
-      let additionalData = {};
-      if (formData.userType === 'farmer') {
-        console.log('Farmer fields:', farmerFields);
-        additionalData = farmerFields;
-      } else if (formData.userType === 'user' || formData.userType === 'consumer') {
-        console.log('Consumer fields:', consumerFields);
-        additionalData = consumerFields;
+      // Prepare the registration data
+      const registrationData = {
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+        role: formData.userType === 'consumer' ? 'user' : formData.userType,
+        ...(formData.userType === 'farmer' ? farmerFields : {}),
+        ...(formData.userType === 'user' || formData.userType === 'consumer' ? consumerFields : {})
+      };
+
+      // Make the API call to register
+      const response = await fetch('http://localhost:5000/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(registrationData),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Registration failed');
       }
+
+      // Store the JWT token
+      localStorage.setItem('token', data.token);
       
-      // For demo purposes, we'll simulate successful registration
-      setTimeout(() => {
-        toast({
-          title: "Registration successful!",
-          description: "Your account has been created.",
-        });
-        
-        // Set user session (in a real app, you would store a JWT token)
-        localStorage.setItem('user', JSON.stringify({
-          email: formData.email,
-          userType: formData.userType === 'consumer' ? 'user' : formData.userType,
-          isLoggedIn: true,
-          name: formData.name,
-          ...additionalData
-        }));
-        
-        // Remove the selected role from localStorage
-        localStorage.removeItem('selectedRole');
-        
-        // Redirect based on user type
-        if (formData.userType === "farmer") {
-          navigate('/farmer');
-        } else if (formData.userType === "admin") {
-          navigate('/admin');
-        } else {
-          navigate('/dashboard');
-        }
-      }, 1000);
+      // Store user data
+      localStorage.setItem('user', JSON.stringify({
+        ...data.user,
+        isLoggedIn: true,
+        ...(formData.userType === 'farmer' ? farmerFields : {}),
+        ...(formData.userType === 'user' || formData.userType === 'consumer' ? consumerFields : {})
+      }));
+      
+      // Remove the selected role from localStorage
+      localStorage.removeItem('selectedRole');
+      
+      toast({
+        title: "Registration successful!",
+        description: "Your account has been created.",
+      });
+
+      // Redirect based on user type
+      if (formData.userType === 'admin') {
+        navigate('/admin/dashboard');
+      } else if (formData.userType === 'farmer') {
+        navigate('/farmer/dashboard');
+      } else {
+        navigate('/dashboard');
+      }
     } catch (error) {
       console.error('Registration error:', error);
       toast({
         title: "Registration failed",
-        description: "There was an error creating your account.",
+        description: error instanceof Error ? error.message : "There was a problem creating your account.",
         variant: "destructive",
       });
     } finally {

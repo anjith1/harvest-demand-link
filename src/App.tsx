@@ -31,8 +31,8 @@ const App = () => (
           <Route path="/map" element={<MapPage />} />
           <Route path="/about" element={<AboutPage />} />
           <Route path="/dashboard" element={<UserDashboardPage />} />
-          <Route path="/farmer" element={<FarmerDashboardPage />} />
-          <Route path="/admin" element={<AdminDashboardPage />} />
+          <Route path="/farmer/dashboard" element={<FarmerDashboardPage />} />
+          <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

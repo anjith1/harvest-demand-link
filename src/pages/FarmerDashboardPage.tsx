@@ -21,7 +21,7 @@ const FarmerDashboardPage = () => {
       const parsedUser = JSON.parse(storedUser);
       if (parsedUser.userType !== 'farmer') {
         if (parsedUser.userType === 'admin') {
-          navigate('/admin');
+          navigate('/admin/dashboard');
         } else {
           navigate('/dashboard');
         }
