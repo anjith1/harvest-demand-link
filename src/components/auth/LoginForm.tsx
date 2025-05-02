@@ -6,10 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const LoginForm = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [userType, setUserType] = useState('user');
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -20,17 +22,12 @@ const LoginForm = () => {
     
     try {
       // In a real app, this would be an API call to authenticate
-      console.log('Logging in with:', { email, password });
+      console.log('Logging in with:', { email, password, userType });
       
       // For demo purposes, we'll simulate successful login
       setTimeout(() => {
-        // Determine user type based on email (in a real app, this would come from the backend)
-        let userType = "user";
-        if (email.includes("admin")) {
-          userType = "admin";
-        } else if (email.includes("farmer")) {
-          userType = "farmer";
-        }
+        // In a real app, the userType would be returned from the backend
+        // Here we're just using the selected userType
         
         // Set user session (in a real app, you would store a JWT token)
         localStorage.setItem('user', JSON.stringify({
@@ -102,22 +99,46 @@ const LoginForm = () => {
               required
             />
           </div>
+          <div className="space-y-2">
+            <Label htmlFor="userType">Login as</Label>
+            <Select value={userType} onValueChange={setUserType}>
+              <SelectTrigger id="userType">
+                <SelectValue placeholder="Select your role" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="user">Consumer</SelectItem>
+                <SelectItem value="farmer">Farmer</SelectItem>
+                <SelectItem value="admin">Administrator</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           <Button 
             type="submit" 
-            className="w-full bg-agro-green-dark hover:bg-agro-green-light text-white" 
+            className={`w-full text-white ${
+              userType === 'farmer' ? 'bg-agro-green-dark hover:bg-agro-green-light' : 
+              userType === 'admin' ? 'bg-purple-600 hover:bg-purple-700' :
+              'bg-blue-500 hover:bg-blue-600'
+            }`}
             disabled={isLoading}
           >
             {isLoading ? "Logging in..." : "Log in"}
           </Button>
         </form>
       </CardContent>
-      <CardFooter className="flex justify-center">
+      <CardFooter className="flex justify-center flex-col space-y-2">
         <p className="text-sm text-muted-foreground">
           Don't have an account?{" "}
           <Link to="/register" className="text-agro-green-dark hover:underline font-medium">
             Sign up
           </Link>
         </p>
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={() => navigate('/')}
+        >
+          Back to role selection
+        </Button>
       </CardFooter>
     </Card>
   );
