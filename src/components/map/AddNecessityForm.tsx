@@ -20,7 +20,14 @@ interface AddNecessityFormProps {
 const unitOptions = ['kg', 'liters', 'pieces', 'bags', 'boxes', 'cans'];
 
 const AddNecessityForm: React.FC<AddNecessityFormProps> = ({ onSubmit, onCancel }) => {
-  const [name, setName] = useState('');
+  const [name, setName] = useState(() => {
+    const user = localStorage.getItem('user');
+    if (user) {
+      const userData = JSON.parse(user);
+      return userData.name || '';
+    }
+    return '';
+  });
   const [necessities, setNecessities] = useState<Necessity[]>([
     { item: '', quantity: 1, unit: 'kg' }
   ]);

@@ -172,7 +172,7 @@ const RegisterForm = () => {
               id="name"
               name="name"
               type="text"
-              placeholder="John Doe"
+              placeholder="Full name"
               value={formData.name}
               onChange={handleChange}
               required
@@ -184,7 +184,7 @@ const RegisterForm = () => {
               id="email"
               name="email"
               type="email"
-              placeholder="your@email.com"
+              placeholder="Email address"
               value={formData.email}
               onChange={handleChange}
               required
@@ -225,7 +225,7 @@ const RegisterForm = () => {
                   id="address"
                   name="address"
                   type="text"
-                  placeholder="123 Main St"
+                  placeholder="Street address"
                   value={consumerFields.address}
                   onChange={handleConsumerFieldChange}
                   required
@@ -266,7 +266,7 @@ const RegisterForm = () => {
                   id="farmName"
                   name="farmName"
                   type="text"
-                  placeholder="Green Acres Farm"
+                  placeholder="Farm name"
                   value={farmerFields.farmName}
                   onChange={handleFarmerFieldChange}
                   required

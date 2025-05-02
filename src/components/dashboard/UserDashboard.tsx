@@ -52,10 +52,11 @@ const generateMockRequests = (): NecessityRequest[] => {
 
 const UserDashboard = () => {
   const [requests, setRequests] = useState<NecessityRequest[]>([]);
+  const [activeTab, setActiveTab] = useState('requests');
   const { toast } = useToast();
   const [userData, setUserData] = useState<{name: string, email: string}>({
-    name: 'John Doe',
-    email: 'john@example.com'
+    name: '',
+    email: ''
   });
   
   useEffect(() => {
@@ -78,10 +79,10 @@ const UserDashboard = () => {
   }, []);
 
   const handleNewRequest = () => {
-    // In a real app, this would navigate to a form or open a modal
+    setActiveTab('map');
     toast({
       title: "Create a new request",
-      description: "Please use the map to mark your location and specify your needs."
+      description: "Click anywhere on the map to mark your location and add your needs."
     });
   };
 
@@ -138,7 +139,7 @@ const UserDashboard = () => {
           </Card>
         </div>
         <div className="md:col-span-2">
-          <Tabs defaultValue="requests">
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="requests">My Requests</TabsTrigger>
               <TabsTrigger value="map">Area Map</TabsTrigger>
@@ -198,8 +199,12 @@ const UserDashboard = () => {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="h-[400px]">
-                    <AgroMap initialCenter={[51.505, -0.09]} initialZoom={12} />
+                  <div style={{ height: '500px' }}>
+                    <AgroMap 
+                      initialCenter={[51.505, -0.09]} 
+                      initialZoom={12} 
+                      editable={true}
+                    />
                   </div>
                 </CardContent>
               </Card>

@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 const LoginForm = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [userType, setUserType] = useState('user');
+  const [role, setRole] = useState('user');
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -21,35 +21,46 @@ const LoginForm = () => {
     setIsLoading(true);
     
     try {
-      // In a real app, this would be an API call to authenticate
-      console.log('Logging in with:', { email, password, userType });
-      
-      // For demo purposes, we'll simulate successful login
-      setTimeout(() => {
-        // In a real app, the userType would be returned from the backend
-        // Here we're just using the selected userType
-        
-        // Set user session (in a real app, you would store a JWT token)
-        localStorage.setItem('user', JSON.stringify({
+      const response = await fetch('http://localhost:5000/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
           email,
-          userType,
-          isLoggedIn: true
-        }));
-        
-        toast({
-          title: "Logged in successfully!",
-          description: `Welcome back ${email}`,
-        });
-        
-        // Redirect based on user type
-        if (userType === "admin") {
-          navigate('/admin');
-        } else if (userType === "farmer") {
-          navigate('/farmer');
-        } else {
-          navigate('/dashboard');
-        }
-      }, 1000);
+          password,
+          role
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Login failed');
+      }
+
+      const data = await response.json();
+      
+      // Store the token and user data
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify({
+        email,
+        role: data.user.role,
+        isLoggedIn: true
+      }));
+      
+      toast({
+        title: "Logged in successfully!",
+        description: `Welcome back ${email}`,
+      });
+      
+      // Redirect based on user type
+      if (data.user.role === "admin") {
+        navigate('/admin/dashboard');
+      } else if (data.user.role === "farmer") {
+        navigate('/farmer/dashboard');
+      } else {
+        navigate('/dashboard');
+      }
+
     } catch (error) {
       console.error('Login error:', error);
       toast({
@@ -100,9 +111,9 @@ const LoginForm = () => {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="userType">Login as</Label>
-            <Select value={userType} onValueChange={setUserType}>
-              <SelectTrigger id="userType">
+            <Label htmlFor="role">Login as</Label>
+            <Select value={role} onValueChange={setRole}>
+              <SelectTrigger id="role">
                 <SelectValue placeholder="Select your role" />
               </SelectTrigger>
               <SelectContent>
@@ -115,8 +126,8 @@ const LoginForm = () => {
           <Button 
             type="submit" 
             className={`w-full text-white ${
-              userType === 'farmer' ? 'bg-agro-green-dark hover:bg-agro-green-light' : 
-              userType === 'admin' ? 'bg-purple-600 hover:bg-purple-700' :
+              role === 'farmer' ? 'bg-agro-green-dark hover:bg-agro-green-light' : 
+              role === 'admin' ? 'bg-purple-600 hover:bg-purple-700' :
               'bg-blue-500 hover:bg-blue-600'
             }`}
             disabled={isLoading}

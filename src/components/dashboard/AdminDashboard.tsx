@@ -86,40 +86,21 @@ const generateMockDemandData = (): ClusterDemand[] => [
   },
 ];
 
-const generateMockUsers = (): User[] => [
-  {
-    id: '1',
-    name: 'John Smith',
-    email: 'john@example.com',
-    type: 'farmer',
-    status: 'verified',
-    joinedDate: new Date('2023-03-15')
-  },
-  {
-    id: '2',
-    name: 'Sarah Johnson',
-    email: 'sarah@example.com',
-    type: 'user',
-    status: 'verified',
-    joinedDate: new Date('2023-03-20')
-  },
-  {
-    id: '3',
-    name: 'Michael Brown',
-    email: 'michael@example.com',
-    type: 'farmer',
-    status: 'pending',
-    joinedDate: new Date('2023-04-01')
-  },
-  {
-    id: '4',
-    name: 'Lisa Davis',
-    email: 'lisa@example.com',
-    type: 'user',
-    status: 'pending',
-    joinedDate: new Date('2023-04-05')
+// Function to fetch users from the backend
+const fetchUsers = async () => {
+  try {
+    const response = await fetch('http://localhost:5000/api/auth/users', {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+      },
+    });
+    if (!response.ok) throw new Error('Failed to fetch users');
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    return [];
   }
-];
+};
 
 // Chart data
 const generateChartData = (demands: ClusterDemand[]) => {
@@ -148,11 +129,14 @@ const AdminDashboard = () => {
   const [chartData, setChartData] = useState<any[]>([]);
   
   useEffect(() => {
-    // In a real app, you'd fetch this data from an API
-    const demands = generateMockDemandData();
-    setDemandClusters(demands);
-    setChartData(generateChartData(demands));
-    setUsers(generateMockUsers());
+    const loadData = async () => {
+      const demands = generateMockDemandData();
+      setDemandClusters(demands);
+      setChartData(generateChartData(demands));
+      const users = await fetchUsers();
+      setUsers(users);
+    };
+    loadData();
   }, []);
 
   const getPriorityColor = (priority: string) => {
