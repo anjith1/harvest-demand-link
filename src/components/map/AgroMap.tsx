@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents, Circle } from 'react-leaflet';
 import "leaflet/dist/leaflet.css";
-import { Icon } from 'leaflet';
+import { Icon, LatLngTuple } from 'leaflet';
 import { Button } from '@/components/ui/button';
 import AddNecessityForm from './AddNecessityForm';
 
@@ -184,20 +184,24 @@ const AgroMap: React.FC<AgroMapProps> = ({
   return (
     <div className="h-full relative">
       <MapContainer 
-        center={initialCenter} 
-        zoom={initialZoom} 
         className="h-full w-full rounded-md"
+        zoom={initialZoom} 
+        center={initialCenter as LatLngTuple}
       >
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         />
         
         {editable && <LocationMarker onLocationSelect={handleLocationSelect} />}
 
         {/* Display regular markers */}
         {locations.map((loc) => (
-          <Marker key={loc.id} position={loc.position} icon={userIcon}>
+          <Marker 
+            key={loc.id} 
+            position={loc.position}
+            icon={userIcon}
+          >
             <Popup>
               <div className="p-2">
                 <h3 className="font-semibold">{loc.name}</h3>
@@ -223,11 +227,14 @@ const AgroMap: React.FC<AgroMapProps> = ({
         {clusterMode && clusters.map((cluster, idx) => (
           <React.Fragment key={`cluster-${idx}`}>
             <Circle 
-              center={cluster.center} 
-              radius={10000} 
-              pathOptions={{ color: '#8BC34A', fillColor: '#8BC34A', fillOpacity: 0.2 }} 
+              center={cluster.center}
+              pathOptions={{ color: '#8BC34A', fillColor: '#8BC34A', fillOpacity: 0.2 }}
+              radius={10000}
             />
-            <Marker position={cluster.center} icon={userIcon}>
+            <Marker 
+              position={cluster.center}
+              icon={userIcon}
+            >
               <Popup>
                 <div className="p-2">
                   <h3 className="font-semibold text-agro-green-dark">Priority Cluster</h3>
