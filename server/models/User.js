@@ -20,14 +20,18 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['user', 'farmer', 'admin'],
-    default: 'user'
+    enum: ['consumer', 'farmer'],
+    default: 'consumer'
   },
   createdAt: {
     type: Date,
     default: Date.now
   }
 });
+
+// Add indexes for better query performance
+userSchema.index({ email: 1 });
+userSchema.index({ role: 1 });
 
 // Hash password before saving
 userSchema.pre('save', async function(next) {

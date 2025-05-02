@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,7 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { MapPin, CheckCircle, Plus, Package, Bell } from 'lucide-react';
-import AgroMap from '../map/AgroMap';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import axios from 'axios';
 
 // Interfaces
 interface Product {
@@ -25,6 +28,22 @@ interface ClusterDemand {
   locations: number;
   distance: number;
   coordinates: [number, number];
+}
+
+interface ConsumerRequest {
+  id: string;
+  consumerName: string;
+  item: string;
+  quantity: number;
+  unit: string;
+  urgency: string;
+  timeNeeded: string;
+  location: {
+    name: string;
+    coordinates: [number, number];
+  };
+  status: 'pending' | 'accepted' | 'rejected';
+  createdAt: Date;
 }
 
 // Mock data
@@ -64,17 +83,58 @@ const generateMockDemands = (): ClusterDemand[] => [
   },
 ];
 
+const generateMockConsumerRequests = (): ConsumerRequest[] => [
+  {
+    id: '1',
+    consumerName: 'John Doe',
+    item: 'Tomatoes',
+    quantity: 10,
+    unit: 'kg',
+    urgency: 'High',
+    timeNeeded: '2 days',
+    location: {
+      name: 'Community Center',
+      coordinates: [51.505, -0.09]
+    },
+    status: 'pending',
+    createdAt: new Date('2024-03-15')
+  },
+  {
+    id: '2',
+    consumerName: 'Jane Smith',
+    item: 'Potatoes',
+    quantity: 5,
+    unit: 'kg',
+    urgency: 'Medium',
+    timeNeeded: '1 week',
+    location: {
+      name: 'Local School',
+      coordinates: [51.51, -0.1]
+    },
+    status: 'pending',
+    createdAt: new Date('2024-03-14')
+  }
+];
+
 const FarmerDashboard = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [demands, setDemands] = useState<ClusterDemand[]>([]);
+  const [consumerRequests, setConsumerRequests] = useState<ConsumerRequest[]>([]);
+  const [selectedRequest, setSelectedRequest] = useState<ConsumerRequest | null>(null);
+  const [deliveryTime, setDeliveryTime] = useState('');
+  const [chatMessage, setChatMessage] = useState('');
   const { toast } = useToast();
   const [farmerData, setFarmerData] = useState({
     name: 'John Smith',
     farm: 'Green Valley Farms',
     verified: true,
   });
+  const [showAcceptDialog, setShowAcceptDialog] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatDemand, setChatDemand] = useState<ClusterDemand | null>(null);
   
   useEffect(() => {
+    fetchConsumerRequests();
     // In a real app, you'd fetch the farmer's products and nearby demands from an API
     setProducts(generateMockProducts());
     setDemands(generateMockDemands());
@@ -95,6 +155,19 @@ const FarmerDashboard = () => {
     }
   }, []);
 
+  const fetchConsumerRequests = async () => {
+    try {
+      const response = await axios.get('/api/necessity-requests');
+      setConsumerRequests(response.data);
+    } catch (error) {
+      console.error('Failed to fetch consumer requests:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch consumer requests. Please try again.'
+      });
+    }
+  };
+
   const handleAddProduct = () => {
     // In a real app, this would navigate to a form or open a modal
     toast({
@@ -103,11 +176,88 @@ const FarmerDashboard = () => {
     });
   };
 
-  const handleAcceptRequest = (demand: ClusterDemand) => {
+  const handleAcceptRequest = async (request: ConsumerRequest) => {
+    setSelectedRequest(request);
+    setShowAcceptDialog(true);
+  };
+
+  const handleRejectRequest = async (request: ConsumerRequest) => {
+    try {
+      await axios.patch(`/api/necessity-requests/${request.id}/reject`);
+      setConsumerRequests(prev => 
+        prev.map(req => 
+          req.id === request.id ? { ...req, status: 'rejected' } : req
+        )
+      );
+      toast({
+        title: 'Request rejected',
+        description: `You have rejected the request for ${request.quantity} ${request.unit} of ${request.item}.`
+      });
+    } catch (error) {
+      console.error('Failed to reject request:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to reject request. Please try again.'
+      });
+    }
+  };
+
+  const handleAcceptSubmit = async () => {
+    if (!selectedRequest || !deliveryTime) {
+      toast({ title: 'Error', description: 'Please specify delivery time.' });
+      return;
+    }
+
+    try {
+      await axios.patch(`/api/necessity-requests/${selectedRequest.id}/accept`, {
+        deliveryTime
+      });
+
+      setConsumerRequests(prev => 
+        prev.map(req => 
+          req.id === selectedRequest.id ? { ...req, status: 'accepted' } : req
+        )
+      );
+
+      setShowAcceptDialog(false);
+      setDeliveryTime('');
+      setSelectedRequest(null);
+
+      toast({
+        title: 'Request accepted!',
+        description: `You will deliver ${selectedRequest.quantity} ${selectedRequest.unit} of ${selectedRequest.item} in ${deliveryTime}.`
+      });
+    } catch (error) {
+      console.error('Failed to accept request:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to accept request. Please try again.'
+      });
+    }
+  };
+
+  const handleOpenChat = (demand: ClusterDemand) => {
+    setChatDemand(demand);
+    setChatOpen(true);
+  };
+
+  const handleCloseChat = () => {
+    setChatOpen(false);
+    setChatDemand(null);
+  };
+
+  const handleSendMessage = () => {
+    if (!chatMessage.trim()) {
+      toast({ title: 'Error', description: 'Please enter a message.' });
+      return;
+    }
+
+    // In a real app, this would send the message to the backend
     toast({
-      title: "Request accepted!",
-      description: `You've committed to supply ${demand.totalDemand} ${demand.unit} of ${demand.item}.`
+      title: 'Message sent',
+      description: 'Your message has been sent to the consumer.'
     });
+    setChatMessage('');
   };
 
   // Mock location for the farmer
@@ -160,57 +310,98 @@ const FarmerDashboard = () => {
           </Card>
         </div>
         <div className="md:col-span-2">
-          <Tabs defaultValue="demands">
+          <Tabs defaultValue="requests">
             <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="demands">Nearby Demands</TabsTrigger>
+              <TabsTrigger value="requests">Consumer Requests</TabsTrigger>
               <TabsTrigger value="products">My Products</TabsTrigger>
-              <TabsTrigger value="map">Area Map</TabsTrigger>
+              <TabsTrigger value="demands">Nearby Demands</TabsTrigger>
             </TabsList>
-            
-            <TabsContent value="demands">
+
+            <TabsContent value="requests">
               <Card>
                 <CardHeader>
-                  <CardTitle>Priority Demands Near You</CardTitle>
+                  <CardTitle>Consumer Requests</CardTitle>
                   <CardDescription>
-                    Clusters of requests within 10km of your location
+                    Manage requests from consumers
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {demands.map((demand) => (
+                    {consumerRequests.map((request) => (
                       <div 
-                        key={demand.id} 
+                        key={request.id} 
                         className="p-4 border rounded-lg hover:bg-gray-50 transition-colors"
                       >
                         <div className="flex justify-between items-start">
                           <div>
-                            <h3 className="font-medium">{demand.item}</h3>
-                            <div className="flex items-center text-sm text-gray-500">
-                              <MapPin className="h-3 w-3 mr-1" /> 
-                              {demand.distance} km away
-                            </div>
-                            <div className="mt-2">
+                            <h3 className="font-medium">{request.item}</h3>
+                            <p className="text-sm text-gray-500">
+                              Requested by {request.consumerName}
+                            </p>
+                            <div className="mt-2 space-y-1">
                               <p className="text-sm">
-                                <span className="font-medium">Total Demand:</span> {demand.totalDemand} {demand.unit}
+                                <span className="font-medium">Quantity:</span> {request.quantity} {request.unit}
                               </p>
                               <p className="text-sm">
-                                <span className="font-medium">Communities:</span> {demand.locations}
+                                <span className="font-medium">Urgency:</span> {request.urgency}
+                              </p>
+                              <p className="text-sm">
+                                <span className="font-medium">Time Needed:</span> {request.timeNeeded}
+                              </p>
+                              <p className="text-sm">
+                                <span className="font-medium">Location:</span> {request.location.name}
                               </p>
                             </div>
                           </div>
-                          <Button 
-                            size="sm" 
-                            className="bg-agro-green-dark hover:bg-agro-green-light"
-                            onClick={() => handleAcceptRequest(demand)}
-                          >
-                            Supply
-                          </Button>
+                          <div className="flex flex-col gap-2 items-end">
+                            {request.status === 'pending' && (
+                              <>
+                                <Button 
+                                  size="sm" 
+                                  className="bg-agro-green-dark hover:bg-agro-green-light"
+                                  onClick={() => handleAcceptRequest(request)}
+                                >
+                                  Accept
+                                </Button>
+                                <Button 
+                                  size="sm" 
+                                  variant="destructive"
+                                  onClick={() => handleRejectRequest(request)}
+                                >
+                                  Reject
+                                </Button>
+                              </>
+                            )}
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => {
+                                setChatDemand({
+                                  id: request.id,
+                                  item: request.item,
+                                  totalDemand: request.quantity,
+                                  unit: request.unit,
+                                  locations: 1,
+                                  distance: 0,
+                                  coordinates: request.location.coordinates
+                                });
+                                setChatOpen(true);
+                              }}
+                            >
+                              Chat
+                            </Button>
+                            {request.status !== 'pending' && (
+                              <Badge className={request.status === 'accepted' ? 'bg-green-500' : 'bg-red-500'}>
+                                {request.status}
+                              </Badge>
+                            )}
+                          </div>
                         </div>
                       </div>
                     ))}
-                    {demands.length === 0 && (
+                    {consumerRequests.length === 0 && (
                       <div className="text-center py-4">
-                        <p className="text-muted-foreground">No priority demands in your area</p>
+                        <p className="text-muted-foreground">No consumer requests at the moment</p>
                       </div>
                     )}
                   </div>
@@ -258,29 +449,68 @@ const FarmerDashboard = () => {
                 </CardContent>
               </Card>
             </TabsContent>
-            
-            <TabsContent value="map">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Demand Map</CardTitle>
-                  <CardDescription>
-                    View clusters of demand in your area
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-[400px]">
-                    <AgroMap 
-                      initialCenter={farmerLocation} 
-                      initialZoom={11} 
-                      clusterMode={true}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
           </Tabs>
         </div>
       </div>
+      <Dialog open={showAcceptDialog} onOpenChange={setShowAcceptDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Accept Request</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {selectedRequest && (
+              <div className="bg-gray-50 p-3 rounded-lg">
+                <h4 className="font-medium mb-2">Request Details</h4>
+                <p className="text-sm">Item: {selectedRequest.item}</p>
+                <p className="text-sm">Quantity: {selectedRequest.quantity} {selectedRequest.unit}</p>
+                <p className="text-sm">Urgency: {selectedRequest.urgency}</p>
+                <p className="text-sm">Time Needed: {selectedRequest.timeNeeded}</p>
+              </div>
+            )}
+            <div className="space-y-2">
+              <Label>When will you deliver?</Label>
+              <Input 
+                value={deliveryTime} 
+                onChange={(e) => setDeliveryTime(e.target.value)}
+                placeholder="e.g., Tomorrow, 2 days, Next week"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAcceptDialog(false)}>Cancel</Button>
+            <Button onClick={handleAcceptSubmit}>Confirm Delivery</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={chatOpen} onOpenChange={handleCloseChat}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Chat with Consumer</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {chatDemand && (
+              <div className="bg-gray-50 p-3 rounded-lg">
+                <h4 className="font-medium mb-2">Request Details</h4>
+                <p className="text-sm">Item: {chatDemand.item}</p>
+                <p className="text-sm">Quantity: {chatDemand.totalDemand} {chatDemand.unit}</p>
+              </div>
+            )}
+            <div className="space-y-2">
+              <Label>Your Message</Label>
+              <Textarea 
+                value={chatMessage}
+                onChange={(e) => setChatMessage(e.target.value)}
+                placeholder="Type your message here..."
+                rows={4}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={handleCloseChat}>Close</Button>
+            <Button onClick={handleSendMessage}>Send Message</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
