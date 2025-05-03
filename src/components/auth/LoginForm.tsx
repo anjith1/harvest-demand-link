@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
@@ -6,53 +5,56 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const LoginForm = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [role, setRole] = useState('user');
+  const [formData, setFormData] = useState({
+    email: '',
+    password: ''
+  });
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    
+
     try {
       const response = await fetch('http://localhost:5000/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          email,
-          password,
-          role
-        }),
+        body: JSON.stringify(formData),
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        throw new Error('Login failed');
+        throw new Error(data.message || 'Login failed');
       }
 
-      const data = await response.json();
-      
       // Store the token and user data
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify({
-        email,
+        _id: data.user._id,
+        email: data.user.email,
+        name: data.user.name,
         role: data.user.role,
         isLoggedIn: true
       }));
-      
+
       toast({
-        title: "Logged in successfully!",
-        description: `Welcome back ${email}`,
+        title: "Login successful!",
+        description: `Welcome back, ${data.user.name}!`,
       });
-      
-      // Redirect based on user type
+
+      // Redirect based on user role
       if (data.user.role === "admin") {
         navigate('/admin/dashboard');
       } else if (data.user.role === "farmer") {
@@ -60,12 +62,11 @@ const LoginForm = () => {
       } else {
         navigate('/dashboard');
       }
-
     } catch (error) {
       console.error('Login error:', error);
       toast({
         title: "Login failed",
-        description: "Please check your credentials and try again.",
+        description: error instanceof Error ? error.message : "Invalid email or password",
         variant: "destructive",
       });
     } finally {
@@ -78,7 +79,7 @@ const LoginForm = () => {
       <CardHeader className="space-y-1">
         <CardTitle className="text-2xl font-bold text-center">Welcome back</CardTitle>
         <CardDescription className="text-center">
-          Enter your email and password to log in
+          Enter your credentials to access your account
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -87,69 +88,41 @@ const LoginForm = () => {
             <Label htmlFor="email">Email</Label>
             <Input
               id="email"
+              name="email"
               type="email"
-              placeholder="your@email.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              placeholder="name@example.com"
+              value={formData.email}
+              onChange={handleChange}
               required
             />
           </div>
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="password">Password</Label>
-              <Link to="/forgot-password" className="text-sm text-agro-green-dark hover:underline">
-                Forgot password?
-              </Link>
-            </div>
+            <Label htmlFor="password">Password</Label>
             <Input
               id="password"
+              name="password"
               type="password"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              value={formData.password}
+              onChange={handleChange}
               required
             />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="role">Login as</Label>
-            <Select value={role} onValueChange={setRole}>
-              <SelectTrigger id="role">
-                <SelectValue placeholder="Select your role" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="user">Consumer</SelectItem>
-                <SelectItem value="farmer">Farmer</SelectItem>
-                <SelectItem value="admin">Administrator</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
           <Button 
             type="submit" 
-            className={`w-full text-white ${
-              role === 'farmer' ? 'bg-agro-green-dark hover:bg-agro-green-light' : 
-              role === 'admin' ? 'bg-purple-600 hover:bg-purple-700' :
-              'bg-blue-500 hover:bg-blue-600'
-            }`}
+            className="w-full bg-agro-green-dark hover:bg-agro-green-light"
             disabled={isLoading}
           >
-            {isLoading ? "Logging in..." : "Log in"}
+            {isLoading ? "Signing in..." : "Sign in"}
           </Button>
         </form>
       </CardContent>
-      <CardFooter className="flex justify-center flex-col space-y-2">
-        <p className="text-sm text-muted-foreground">
-          Don't have an account?{" "}
-          <Link to="/register" className="text-agro-green-dark hover:underline font-medium">
-            Sign up
+      <CardFooter className="flex flex-col space-y-4">
+        <div className="text-sm text-center text-gray-600">
+          Don't have an account?{' '}
+          <Link to="/register" className="text-agro-green-dark hover:underline">
+            Register
           </Link>
-        </p>
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          onClick={() => navigate('/')}
-        >
-          Back to role selection
-        </Button>
+        </div>
       </CardFooter>
     </Card>
   );

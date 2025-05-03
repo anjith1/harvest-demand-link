@@ -44,6 +44,7 @@ const UserDashboard = () => {
   const [activeTab, setActiveTab] = useState('requests');
   const { toast } = useToast();
   const [userData, setUserData] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [newRequest, setNewRequest] = useState({
     item: '',
@@ -63,17 +64,20 @@ const UserDashboard = () => {
         description: 'Please log in to access the dashboard.',
         variant: 'destructive'
       });
+      window.location.href = '/login';
       return;
     }
 
     // Fetch user data from MongoDB
     const fetchUserData = async () => {
       try {
+        setIsLoading(true);
         const response = await axios.get('/api/auth/me', {
           headers: {
             Authorization: `Bearer ${token}`
           }
         });
+        
         if (response.data) {
           setUserData(response.data);
           console.log('User data loaded:', response.data);
@@ -86,14 +90,17 @@ const UserDashboard = () => {
             description: 'Please log in again.',
             variant: 'destructive'
           });
-          // Optionally redirect to login page
-          // window.location.href = '/login';
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          window.location.href = '/login';
         } else {
           toast({
             title: 'Error',
             description: 'Failed to load user data. Please try again.'
           });
         }
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -113,7 +120,7 @@ const UserDashboard = () => {
     
     testConnection();
     fetchUserData();
-  }, []);
+  }, [toast]);
 
   useEffect(() => {
     if (userData?._id) {
@@ -226,6 +233,28 @@ const UserDashboard = () => {
         return null;
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-agro-green-dark"></div>
+      </div>
+    );
+  }
+
+  if (!userData) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold mb-4">Unable to load user data</h2>
+          <p className="text-gray-600 mb-4">Please try logging in again</p>
+          <Button onClick={() => window.location.href = '/login'}>
+            Go to Login
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto py-6">

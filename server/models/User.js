@@ -20,7 +20,8 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['consumer', 'farmer'],
+    enum: ['consumer', 'farmer', 'admin'],
+    required: true,
     default: 'consumer'
   },
   createdAt: {
@@ -32,13 +33,6 @@ const userSchema = new mongoose.Schema({
 // Add indexes for better query performance
 userSchema.index({ email: 1 });
 userSchema.index({ role: 1 });
-
-// Hash password before saving
-userSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) return next();
-  this.password = await bcrypt.hash(this.password, 10);
-  next();
-});
 
 // Method to compare password
 userSchema.methods.comparePassword = async function(candidatePassword) {

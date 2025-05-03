@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
@@ -23,38 +22,36 @@ interface ConsumerFields {
 
 const RegisterForm = () => {
   const [searchParams] = useSearchParams();
-  const roleParam = searchParams.get('role');
-  
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     password: '',
     confirmPassword: '',
-    userType: roleParam || 'user',
+    userType: 'consumer'
   });
   
   const [farmerFields, setFarmerFields] = useState<FarmerFields>({
     farmName: '',
     farmLocation: '',
-    productsOffered: '',
+    productsOffered: ''
   });
   
   const [consumerFields, setConsumerFields] = useState<ConsumerFields>({
     address: '',
     city: '',
-    zipCode: '',
+    zipCode: ''
   });
-  
+
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Update the user type whenever the URL parameter changes
-    if (roleParam) {
-      setFormData(prev => ({ ...prev, userType: roleParam }));
+    const role = searchParams.get('role');
+    if (role && ['consumer', 'farmer', 'admin'].includes(role)) {
+      setFormData(prev => ({ ...prev, userType: role }));
     }
-  }, [roleParam]);
+  }, [searchParams]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -71,73 +68,67 @@ const RegisterForm = () => {
     setConsumerFields(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleUserTypeChange = (value: string) => {
+  const handleRoleChange = (value: string) => {
     setFormData(prev => ({ ...prev, userType: value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+    setIsLoading(true);
+
+    // Validate passwords match
     if (formData.password !== formData.confirmPassword) {
       toast({
         title: "Passwords don't match",
         description: "Please make sure your passwords match.",
         variant: "destructive",
       });
+      setIsLoading(false);
       return;
     }
-    
-    setIsLoading(true);
-    
-    try {
-      // Prepare the registration data
-      const registrationData = {
-        name: formData.name,
-        email: formData.email,
-        password: formData.password,
-        role: formData.userType === 'consumer' ? 'user' : formData.userType,
-        ...(formData.userType === 'farmer' ? farmerFields : {}),
-        ...(formData.userType === 'user' || formData.userType === 'consumer' ? consumerFields : {})
-      };
 
-      // Make the API call to register
+    try {
       const response = await fetch('http://localhost:5000/api/auth/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(registrationData),
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          password: formData.password,
+          role: formData.userType,
+          ...(formData.userType === 'farmer' ? farmerFields : {}),
+          ...(formData.userType === 'consumer' ? consumerFields : {})
+        }),
       });
 
-      const data = await response.json();
-
       if (!response.ok) {
-        throw new Error(data.message || 'Registration failed');
+        const error = await response.json();
+        throw new Error(error.message || 'Registration failed');
       }
 
-      // Store the JWT token
+      const data = await response.json();
+      
+      // Store the token and user data
       localStorage.setItem('token', data.token);
-      
-      // Store user data
       localStorage.setItem('user', JSON.stringify({
-        ...data.user,
-        isLoggedIn: true,
-        ...(formData.userType === 'farmer' ? farmerFields : {}),
-        ...(formData.userType === 'user' || formData.userType === 'consumer' ? consumerFields : {})
+        _id: data.user._id,
+        email: data.user.email,
+        name: data.user.name,
+        role: data.user.role,
+        isLoggedIn: true
       }));
-      
-      // Remove the selected role from localStorage
-      localStorage.removeItem('selectedRole');
       
       toast({
         title: "Registration successful!",
-        description: "Your account has been created.",
+        description: `Welcome to AgroConnect, ${data.user.name}!`,
       });
 
-      // Redirect based on user type
-      if (formData.userType === 'admin') {
+      // Redirect based on user role
+      if (data.user.role === "admin") {
         navigate('/admin/dashboard');
-      } else if (formData.userType === 'farmer') {
+      } else if (data.user.role === "farmer") {
         navigate('/farmer/dashboard');
       } else {
         navigate('/dashboard');
@@ -159,20 +150,34 @@ const RegisterForm = () => {
       <CardHeader className="space-y-1">
         <CardTitle className="text-2xl font-bold text-center">Create an account</CardTitle>
         <CardDescription className="text-center">
-          {formData.userType === 'farmer' ? 'Register as a Farmer/Supplier' : 
-           formData.userType === 'admin' ? 'Register as an Administrator' : 
-           'Register as a Consumer'}
+          Choose your account type
         </CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="userType">Account Type</Label>
+            <Select
+              value={formData.userType}
+              onValueChange={handleRoleChange}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select account type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="consumer">Consumer</SelectItem>
+                <SelectItem value="farmer">Farmer/Supplier</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="name">Full Name</Label>
             <Input
               id="name"
               name="name"
               type="text"
-              placeholder="Full name"
+              placeholder="John Doe"
               value={formData.name}
               onChange={handleChange}
               required
@@ -184,7 +189,7 @@ const RegisterForm = () => {
               id="email"
               name="email"
               type="email"
-              placeholder="Email address"
+              placeholder="name@example.com"
               value={formData.email}
               onChange={handleChange}
               required
@@ -196,11 +201,9 @@ const RegisterForm = () => {
               id="password"
               name="password"
               type="password"
-              placeholder="••••••••"
               value={formData.password}
               onChange={handleChange}
               required
-              minLength={8}
             />
           </div>
           <div className="space-y-2">
@@ -209,15 +212,56 @@ const RegisterForm = () => {
               id="confirmPassword"
               name="confirmPassword"
               type="password"
-              placeholder="••••••••"
               value={formData.confirmPassword}
               onChange={handleChange}
               required
             />
           </div>
-          
-          {/* Display different fields based on the user type */}
-          {(formData.userType === 'user' || formData.userType === 'consumer') && (
+
+          {/* Farmer-specific fields */}
+          {formData.userType === 'farmer' && (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="farmName">Farm Name</Label>
+                <Input
+                  id="farmName"
+                  name="farmName"
+                  type="text"
+                  placeholder="Your Farm Name"
+                  value={farmerFields.farmName}
+                  onChange={handleFarmerFieldChange}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="farmLocation">Farm Location</Label>
+                <Input
+                  id="farmLocation"
+                  name="farmLocation"
+                  type="text"
+                  placeholder="City, State"
+                  value={farmerFields.farmLocation}
+                  onChange={handleFarmerFieldChange}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="productsOffered">Products Offered</Label>
+                <Input
+                  id="productsOffered"
+                  name="productsOffered"
+                  type="text"
+                  placeholder="Vegetables, Fruits, Dairy, etc."
+                  value={farmerFields.productsOffered}
+                  onChange={handleFarmerFieldChange}
+                  required
+                />
+              </div>
+            </>
+          )}
+
+          {/* Consumer-specific fields */}
+          {formData.userType === 'consumer' && (
             <>
               <div className="space-y-2">
                 <Label htmlFor="address">Address</Label>
@@ -225,7 +269,7 @@ const RegisterForm = () => {
                   id="address"
                   name="address"
                   type="text"
-                  placeholder="Street address"
+                  placeholder="Street Address"
                   value={consumerFields.address}
                   onChange={handleConsumerFieldChange}
                   required
@@ -257,75 +301,23 @@ const RegisterForm = () => {
               </div>
             </>
           )}
-          
-          {formData.userType === 'farmer' && (
-            <>
-              <div className="space-y-2">
-                <Label htmlFor="farmName">Farm Name</Label>
-                <Input
-                  id="farmName"
-                  name="farmName"
-                  type="text"
-                  placeholder="Farm name"
-                  value={farmerFields.farmName}
-                  onChange={handleFarmerFieldChange}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="farmLocation">Farm Location</Label>
-                <Input
-                  id="farmLocation"
-                  name="farmLocation"
-                  type="text"
-                  placeholder="County, State"
-                  value={farmerFields.farmLocation}
-                  onChange={handleFarmerFieldChange}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="productsOffered">Products Offered</Label>
-                <Input
-                  id="productsOffered"
-                  name="productsOffered"
-                  type="text"
-                  placeholder="Vegetables, Fruits, Dairy, etc."
-                  value={farmerFields.productsOffered}
-                  onChange={handleFarmerFieldChange}
-                  required
-                />
-              </div>
-            </>
-          )}
-          
+
           <Button 
             type="submit" 
-            className={`w-full text-white ${
-              formData.userType === 'farmer' ? 'bg-agro-green-dark hover:bg-agro-green-light' : 
-              formData.userType === 'admin' ? 'bg-purple-600 hover:bg-purple-700' :
-              'bg-blue-500 hover:bg-blue-600'
-            }`}
+            className="w-full bg-agro-green-dark hover:bg-agro-green-light"
             disabled={isLoading}
           >
             {isLoading ? "Creating account..." : "Create account"}
           </Button>
         </form>
       </CardContent>
-      <CardFooter className="flex justify-center flex-col space-y-2">
-        <p className="text-sm text-muted-foreground">
-          Already have an account?{" "}
-          <Link to="/login" className="text-agro-green-dark hover:underline font-medium">
+      <CardFooter className="flex flex-col space-y-4">
+        <div className="text-sm text-center text-gray-600">
+          Already have an account?{' '}
+          <Link to="/login" className="text-agro-green-dark hover:underline">
             Log in
           </Link>
-        </p>
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          onClick={() => navigate('/')}
-        >
-          Back to role selection
-        </Button>
+        </div>
       </CardFooter>
     </Card>
   );

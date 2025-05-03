@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
@@ -16,11 +15,11 @@ const FarmerDashboardPage = () => {
       return;
     }
     
-    // Check user type
+    // Check user role
     try {
       const parsedUser = JSON.parse(storedUser);
-      if (parsedUser.userType !== 'farmer') {
-        if (parsedUser.userType === 'admin') {
+      if (parsedUser.role !== 'farmer') {
+        if (parsedUser.role === 'admin') {
           navigate('/admin/dashboard');
         } else {
           navigate('/dashboard');

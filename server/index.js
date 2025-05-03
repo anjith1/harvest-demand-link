@@ -5,6 +5,7 @@ const cors = require('cors');
 const authRoutes = require('./routes/auth');
 const locationRoutes = require('./routes/locations');
 const necessityRequestRoutes = require('./routes/necessityRequests');
+const messageRoutes = require('./routes/messages');
 
 const app = express();
 
@@ -27,6 +28,7 @@ app.get('/api/test', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/locations', locationRoutes);
 app.use('/api/necessity-requests', necessityRequestRoutes);
+app.use('/api/messages', messageRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
