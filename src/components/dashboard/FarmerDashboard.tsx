@@ -230,9 +230,22 @@ const FarmerDashboard = () => {
     if (!chatMessage.trim() || !selectedRequest) return;
 
     try {
+      // Get user data from localStorage
+      const storedUser = localStorage.getItem('user');
+      if (!storedUser) {
+        toast({
+          title: 'Error',
+          description: 'Please log in to send messages.'
+        });
+        return;
+      }
+
+      const userData = JSON.parse(storedUser);
+      
       const response = await axios.post(`/api/messages`, {
         requestId: selectedRequest._id,
         message: chatMessage,
+        senderId: userData._id,
         senderType: 'farmer',
         receiverId: selectedRequest.consumerId
       });

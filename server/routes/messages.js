@@ -23,7 +23,7 @@ router.post('/', auth, async (req, res) => {
     // Create new message
     const newMessage = new Message({
       requestId,
-      senderId: req.user._id,
+      senderId: req.user.userId,
       receiverId,
       senderType,
       message
@@ -55,7 +55,7 @@ router.patch('/read/:requestId', auth, async (req, res) => {
     await Message.updateMany(
       { 
         requestId: req.params.requestId,
-        receiverId: req.user._id,
+        receiverId: req.user.userId,
         read: false
       },
       { read: true }

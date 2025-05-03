@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Plus, Clock, Check, X } from 'lucide-react';
+import { Plus, Clock, Check, X, MessageCircle } from 'lucide-react';
 import axios from 'axios';
 
 // Configure axios defaults
@@ -28,15 +28,34 @@ interface User {
   email: string;
 }
 
+interface Item {
+  name: string;
+  quantity: number;
+  unit: string;
+}
+
 interface NecessityRequest {
-  id: string;
-  items: { name: string; quantity: number; unit: string }[];
+  _id: string;
+  items: Item[];
   location: {
     name: string;
     coordinates: [number, number];
   };
-  status: 'pending' | 'fulfilled' | 'rejected';
-  createdAt: Date;
+  status: 'pending' | 'accepted' | 'rejected' | 'fulfilled';
+  createdAt: string;
+  acceptedBy?: string;
+  acceptedByName?: string;
+}
+
+interface Message {
+  _id: string;
+  requestId: string;
+  senderId: string;
+  receiverId: string;
+  senderType: 'farmer' | 'consumer';
+  message: string;
+  createdAt: string;
+  read: boolean;
 }
 
 const UserDashboard = () => {
@@ -55,6 +74,10 @@ const UserDashboard = () => {
     lat: '',
     lng: '',
   });
+  const [selectedRequest, setSelectedRequest] = useState<NecessityRequest | null>(null);
+  const [chatMessage, setChatMessage] = useState('');
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [chatOpen, setChatOpen] = useState(false);
   
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -234,6 +257,61 @@ const UserDashboard = () => {
     }
   };
 
+  const handleOpenChat = async (request: NecessityRequest) => {
+    setSelectedRequest(request);
+    setChatOpen(true);
+    await fetchMessages(request._id);
+  };
+
+  const fetchMessages = async (requestId: string) => {
+    try {
+      const response = await axios.get(`/api/messages/request/${requestId}`);
+      setMessages(response.data);
+      // Mark messages as read
+      await axios.patch(`/api/messages/read/${requestId}`);
+    } catch (error) {
+      console.error('Failed to fetch messages:', error);
+    }
+  };
+
+  const handleSendMessage = async () => {
+    if (!chatMessage.trim() || !selectedRequest) return;
+
+    try {
+      const storedUser = localStorage.getItem('user');
+      if (!storedUser) {
+        toast({
+          title: 'Error',
+          description: 'Please log in to send messages.'
+        });
+        return;
+      }
+
+      const userData = JSON.parse(storedUser);
+      
+      const response = await axios.post(`/api/messages`, {
+        requestId: selectedRequest._id,
+        message: chatMessage,
+        senderId: userData._id,
+        senderType: 'consumer',
+        receiverId: selectedRequest.acceptedBy
+      });
+
+      setMessages(prev => [...prev, response.data]);
+      setChatMessage('');
+      toast({
+        title: 'Message sent',
+        description: 'Your message has been sent to the farmer.'
+      });
+    } catch (error) {
+      console.error('Failed to send message:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to send message. Please try again.'
+      });
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -291,7 +369,7 @@ const UserDashboard = () => {
                 {requests.length > 0 ? (
                   requests.map((request) => (
                     <div 
-                      key={request.id} 
+                      key={request._id} 
                       className="p-4 border rounded-lg hover:bg-gray-50 transition-colors"
                     >
                       <div className="flex justify-between items-start">
@@ -308,9 +386,21 @@ const UserDashboard = () => {
                             ))}
                           </ul>
                         </div>
-                        <div className={`flex items-center ${getStatusColor(request.status)}`}>
-                          {getStatusIcon(request.status)}
-                          <span className="ml-1 capitalize">{request.status}</span>
+                        <div className="flex items-center gap-2">
+                          <div className={`flex items-center ${getStatusColor(request.status)}`}>
+                            {getStatusIcon(request.status)}
+                            <span className="ml-1 capitalize">{request.status}</span>
+                          </div>
+                          {request.status === 'accepted' && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleOpenChat(request)}
+                            >
+                              <MessageCircle className="h-4 w-4 mr-2" />
+                              Chat
+                            </Button>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -325,6 +415,66 @@ const UserDashboard = () => {
           </Card>
         </div>
       </div>
+
+      {/* Chat Dialog */}
+      <Dialog open={chatOpen} onOpenChange={setChatOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Chat with Farmer</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            {selectedRequest && (
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h4 className="font-medium mb-2">Request Details</h4>
+                <div className="space-y-2">
+                  {selectedRequest.items.map((item, index) => (
+                    <p key={index} className="text-sm">
+                      {item.quantity} {item.unit} of {item.name}
+                    </p>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div className="h-64 overflow-y-auto border rounded-lg p-4 space-y-4">
+              {messages.map((message) => (
+                <div
+                  key={message._id}
+                  className={`flex ${message.senderType === 'consumer' ? 'justify-end' : 'justify-start'}`}
+                >
+                  <div
+                    className={`max-w-[80%] rounded-lg p-3 ${
+                      message.senderType === 'consumer'
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-gray-100'
+                    }`}
+                  >
+                    <p className="text-sm">{message.message}</p>
+                    <p className="text-xs mt-1 opacity-70">
+                      {new Date(message.createdAt).toLocaleTimeString()}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="grid gap-2">
+              <Textarea
+                value={chatMessage}
+                onChange={(e) => setChatMessage(e.target.value)}
+                placeholder="Type your message..."
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setChatOpen(false)}>
+              Close
+            </Button>
+            <Button onClick={handleSendMessage}>Send Message</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Request Dialog */}
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
         <DialogContent>
           <DialogHeader>
